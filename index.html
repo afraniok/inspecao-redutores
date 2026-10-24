@@ -1,0 +1,874 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#005A1B">
+<title>Inspeção de Redutores</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+/* Layout: coluna única de celular (máx. 480px), barra de ação fixa no rodapé, esquema do redutor como navegação principal. Tema claro único, pensado para leitura na área industrial. */
+:root{
+  color-scheme:light;
+  --bg:#F3F6F3; --surface:#FFFFFF; --surface-2:#E7EDE8; --fg:#122019; --muted:#506157; --line:#CCD7CF;
+  --accent:#005A1B; --accent-hover:#0A6E27; --accent-soft:#DCEDE1; --accent-ink:#FFFFFF;
+  --c1:#2F8F4E; --c2:#B08600; --c3:#D2611A; --c4:#C42B24; --pend:#9AA89F;
+  --c1-soft:#E0F2E6; --c2-soft:#FBF0CC; --c3-soft:#FCE6D6; --c4-soft:#FADBD8;
+  --warn-soft:#FFF4D9; --warn:#8A6100;
+  --f-display:"Roboto Condensed","sans-serif-condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"Roboto Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,textarea:focus-visible,input:focus-visible,label:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+img{max-width:100%}
+#app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0px) 16px 130px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:.005em}
+h1{font-size:30px;line-height:1.08}
+h2{font-size:25px;line-height:1.12}
+h3{font-size:19px}
+p{margin:0}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+.hint{font-size:13px;color:var(--muted)}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:10px}
+.spacer{flex:1}
+.mono{font-family:var(--f-mono);font-size:13px}
+
+/* topo */
+.topbar{display:flex;align-items:center;gap:10px;padding:12px 0 10px;position:sticky;top:0;background:var(--bg);z-index:5}
+.topbar .tt{min-width:0;flex:1}
+.topbar h2{overflow-wrap:anywhere}
+.back{border:none;background:var(--surface-2);width:46px;height:46px;border-radius:12px;font-size:24px;line-height:1;display:grid;place-items:center;flex:none}
+.brand{display:flex;align-items:center;gap:10px;padding:14px 0 6px}
+.brand .logo{width:38px;height:38px;border-radius:10px;background:var(--accent);display:grid;place-items:center;flex:none}
+.brand .logo svg{width:26px;height:26px}
+
+/* status de envio */
+.sync{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600;white-space:nowrap;min-height:34px}
+.sync i{width:9px;height:9px;border-radius:50%;background:var(--c1);flex:none}
+.sync.pend i{background:var(--c2)}
+.sync.off{background:var(--warn-soft);border-color:#E9CF8A;color:var(--warn)}
+.sync.off i{background:var(--warn)}
+.sync.run i{background:var(--accent);animation:pisca 1s ease-in-out infinite}
+.sync.erro i{background:var(--c4)}
+.sync.demo{background:var(--surface-2);color:var(--muted)}
+.sync.demo i{background:var(--pend)}
+@keyframes pisca{50%{opacity:.25}}
+.demo-banner{background:var(--warn-soft);border:1px solid #E9CF8A;color:var(--warn);border-radius:10px;padding:8px 12px;font-size:13px;margin-top:8px}
+
+.mec{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px;font-size:14px;font-weight:600;min-width:0;max-width:52%}
+.mec .av{width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--f-display);font-size:14px;flex:none}
+.mec span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* NFC */
+.nfc{display:grid;place-items:center;padding:22px 0 6px}
+.nfc svg{width:128px;height:128px}
+.nfc .w{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round}
+@media (prefers-reduced-motion:no-preference){
+  .nfc .w{animation:onda 2.2s ease-in-out infinite}
+  .nfc .w2{animation-delay:.25s}.nfc .w3{animation-delay:.5s}
+}
+@keyframes onda{0%,100%{opacity:.2}40%{opacity:1}}
+.lead{text-align:center;font-size:20px;font-weight:700;font-family:var(--f-display)}
+.sub{text-align:center;color:var(--muted);font-size:15px;margin-top:2px}
+#nfcbox{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.nfcmsg{display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:600;text-align:center}
+.nfcmsg.ok{color:var(--accent)}
+.nfcmsg.ok::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--c1)}
+.nfcmsg.err{color:var(--c4);font-weight:500}
+.link{background:none;border:none;color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:3px;padding:12px 4px;min-height:44px}
+.center{text-align:center}
+
+/* progresso */
+.prog{display:flex;gap:3px;margin:4px 0}
+.prog i{flex:1;height:10px;border-radius:2px;background:var(--surface-2);border:1px solid var(--line)}
+.prog i.c1{background:var(--c1);border-color:var(--c1)}.prog i.c2{background:var(--c2);border-color:var(--c2)}
+.prog i.c3{background:var(--c3);border-color:var(--c3)}.prog i.c4{background:var(--c4);border-color:var(--c4)}
+.progtxt{display:flex;justify-content:space-between;gap:8px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.progtxt b{color:var(--fg)}
+
+/* esquema */
+.scheme{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 6px 4px;margin-top:10px}
+.scheme svg{width:100%;height:auto;display:block}
+.scheme .house{fill:var(--surface-2);stroke:var(--line);stroke-width:2}
+.scheme .node{cursor:pointer}
+.scheme .node circle.b{stroke-width:3}
+.scheme .n0 circle.b{fill:var(--surface);stroke:var(--pend)}
+.scheme .np circle.b{fill:var(--accent-soft);stroke:var(--accent);stroke-dasharray:7 5}
+.scheme .nd circle.b{fill:var(--accent);stroke:var(--accent)}
+.scheme text{font-family:var(--f-display);font-weight:700;fill:var(--fg);text-anchor:middle;pointer-events:none}
+.scheme .nd text{fill:var(--accent-ink)}
+.scheme text.fr{font-family:var(--f-mono);font-weight:500;font-size:11px}
+.scheme .flag{stroke:var(--surface);stroke-width:2}
+.scheme .cpl{fill:var(--pend)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);padding:4px 8px 6px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:11px;height:11px;border-radius:50%;display:inline-block}
+
+/* listas */
+.card{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-height:64px}
+.card .nm{font-weight:600;font-size:17px}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.mini{font-size:12px;padding:2px 7px;border-radius:6px;border:1px solid var(--line);color:var(--muted);white-space:nowrap;background:var(--surface)}
+.mini.c1{background:var(--c1-soft);border-color:var(--c1);color:var(--fg)}
+.mini.c2{background:var(--c2-soft);border-color:var(--c2);color:var(--fg)}
+.mini.c3{background:var(--c3-soft);border-color:var(--c3);color:var(--fg)}
+.mini.c4{background:var(--c4-soft);border-color:var(--c4);color:var(--fg)}
+.mini.q{background:var(--warn-soft);border-color:#E9CF8A;color:var(--warn)}
+.frac{font-family:var(--f-mono);font-size:14px;color:var(--muted);flex:none}
+.chev{color:var(--muted);font-size:22px;flex:none}
+.group{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-left-width:6px;border-radius:12px;padding:14px;min-height:74px}
+.item.p{border-left-color:var(--pend)}
+.item.c1{border-left-color:var(--c1)}.item.c2{border-left-color:var(--c2)}.item.c3{border-left-color:var(--c3)}.item.c4{border-left-color:var(--c4)}
+.item .nm{font-weight:600;font-size:18px}
+.item small{display:block;color:var(--muted);font-size:13px}
+.pill{font-size:13px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap;flex:none}
+.pill.p{background:var(--surface-2);color:var(--muted)}
+.pill.c1{background:var(--c1);color:#fff}.pill.c2{background:var(--c2);color:#fff}
+.pill.c3{background:var(--c3);color:#fff}.pill.c4{background:var(--c4);color:#fff}
+.banner{background:var(--accent-soft);border:1px solid #B9D8C2;border-radius:12px;padding:10px 12px;font-size:14px}
+
+/* formulário */
+.field{display:flex;flex-direction:column;gap:8px}
+.label{font-family:var(--f-display);font-weight:700;font-size:19px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.label small{font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--muted)}
+.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ph{position:relative;aspect-ratio:4/3;border-radius:10px;overflow:hidden;background:var(--surface-2);max-width:100%}
+.ph img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.ph button{position:absolute;top:4px;right:4px;width:30px;height:30px;border-radius:50%;border:none;background:rgba(0,0,0,.62);color:#fff;font-size:17px;line-height:1}
+.cam{position:relative;display:flex;align-items:center;justify-content:center;gap:10px;min-height:66px;border-radius:14px;border:2px solid var(--accent);background:var(--accent-soft);color:var(--fg);font-weight:700;font-size:18px;cursor:pointer}
+.cam input{position:absolute;opacity:0;width:1px;height:1px}
+.cam svg{width:26px;height:26px;stroke:var(--accent);fill:none;stroke-width:2}
+.conds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cond{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 10px;min-height:66px;text-align:left;display:flex;flex-direction:column;gap:2px}
+.cond b{font-size:17px;display:flex;align-items:center;gap:7px}
+.cond b i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.cond small{font-size:12px;color:var(--muted);line-height:1.25}
+.cond.on.c1{border-color:var(--c1);background:var(--c1-soft)}.cond.on.c2{border-color:var(--c2);background:var(--c2-soft)}
+.cond.on.c3{border-color:var(--c3);background:var(--c3-soft)}.cond.on.c4{border-color:var(--c4);background:var(--c4-soft)}
+.tags{display:flex;flex-wrap:wrap;gap:7px}
+.tg{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 13px;font-size:14px;min-height:42px}
+.tg.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+textarea,input.txt{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit;background:var(--surface);color:var(--fg)}
+textarea{min-height:100px;resize:vertical}
+input.txt{min-height:52px;font-size:20px;font-family:var(--f-mono)}
+
+/* barra inferior */
+.bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line);z-index:10}
+.bar .in{max-width:448px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.btns{display:flex;gap:8px}
+.btn{flex:1;min-height:56px;border-radius:14px;border:2px solid var(--fg);background:var(--surface);font-weight:700;font-size:17px;padding:0 14px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri:active{background:var(--accent-hover)}
+.btn.dng{background:var(--c4);border-color:var(--c4);color:#fff}
+.btn.sm{min-height:44px;font-size:15px;flex:none}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.why{font-size:13px;color:var(--muted);text-align:center}
+
+/* registro */
+.rec{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.rec .meta{font-size:14px;color:var(--muted)}
+
+/* camadas */
+.veil{position:fixed;inset:0;background:rgba(10,20,14,.5);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px;max-height:90%;overflow:auto}
+.viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:40;display:grid;place-items:center;padding:16px}
+.viewer img{max-height:92vh;border-radius:8px}
+.toast{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);background:var(--fg);color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;z-index:50;width:max-content;max-width:calc(100% - 32px);text-align:center}
+
+/* gestor */
+.rcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px;width:100%;text-align:left}
+.counts{display:flex;flex-wrap:wrap;gap:6px}
+.badge{font-size:12px;font-weight:700;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:2px 8px;white-space:nowrap}
+.mxwrap{overflow-x:auto}
+table.mx{border-collapse:separate;border-spacing:4px;width:100%;min-width:340px}
+.mx th{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:4px}
+.mx th.r{text-align:left;font-size:14px;color:var(--fg);text-transform:none;letter-spacing:0}
+.mx td{padding:0}
+.cell{width:100%;min-height:48px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:12px;font-weight:700}
+.cell.c1{background:var(--c1);border-color:var(--c1);color:#fff}.cell.c2{background:var(--c2);border-color:var(--c2);color:#fff}
+.cell.c3{background:var(--c3);border-color:var(--c3);color:#fff}.cell.c4{background:var(--c4);border-color:var(--c4);color:#fff}
+.cell.na{background:repeating-linear-gradient(45deg,var(--surface-2) 0 6px,transparent 6px 12px);border-style:dashed;color:var(--muted);cursor:default}
+.cell.p{color:var(--muted)}
+.section-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:10px}
+.tagrow{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.tagrow .tt{flex:1;min-width:0}
+.tagrow .tt b{display:block}
+.tagrow .tt small{display:block;color:var(--muted);font-size:12px;word-break:break-all}
+.lida{background:var(--surface);border:1.5px dashed var(--accent);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.pin{letter-spacing:.4em;text-align:center}
+.spin{width:28px;height:28px;border:3px solid var(--surface-2);border-top-color:var(--accent);border-radius:50%;animation:gira .8s linear infinite;margin:20px auto}
+@keyframes gira{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="layer"></div>
+<script src="config.js"></script>
+<script src="sync.js"></script>
+<script>
+'use strict';
+// ================= Definições =================
+const ITEM={
+  LA:{nome:'Rolamento LA',curto:'Rol. LA',tipo:'rol'},
+  LOA:{nome:'Rolamento LOA',curto:'Rol. LOA',tipo:'rol'},
+  PIN:{nome:'Pinhão',curto:'Pinhão',tipo:'eng'},
+  ENG:{nome:'Engrenagem',curto:'Engren.',tipo:'eng'}
+};
+const itemNome=c=>(ITEM[c]||{nome:c}).nome, itemCurto=c=>(ITEM[c]||{curto:c}).curto, itemTipo=c=>(ITEM[c]||{tipo:'rol'}).tipo;
+const COND={1:{nome:'OK',desc:'Sem anomalia'},2:{nome:'Observar',desc:'Desgaste leve, acompanhar'},3:{nome:'Programar',desc:'Reparar ou trocar na entressafra'},4:{nome:'Crítico',desc:'Não pode voltar a operar assim'}};
+const TAGS={
+  rol:['Pista externa marcada','Pista interna marcada','Corpo rolante danificado','Gaiola danificada','Folga excessiva','Corrosão','Contaminação','Sinal de superaquecimento'],
+  eng:['Pitting','Scuffing','Desgaste','Trinca','Dente quebrado','Contato irregular','Corrosão']
+};
+const MODELO_5E=[
+  {id:'ENT',nome:'Eixo de entrada',sigla:'E',itens:['LA','LOA','PIN'],x:306,y:112,r:19},
+  {id:'I1',nome:'Intermediário I',sigla:'I',itens:['LA','LOA','PIN','ENG'],x:242,y:108,r:29},
+  {id:'I2A',nome:'Intermediário II-A',sigla:'II-A',itens:['LA','LOA','PIN','ENG'],x:170,y:56,r:31},
+  {id:'I2B',nome:'Intermediário II-B',sigla:'II-B',itens:['LA','LOA','PIN','ENG'],x:170,y:160,r:31},
+  {id:'SAI',nome:'Eixo de saída',sigla:'S',itens:['LA','LOA','ENG'],x:78,y:108,r:52}
+];
+const DEMO_CAD={
+  redutores:[
+    {id:'MA-T2',nome:'Redutor 2º Terno',local:'Moenda A',modelo:'TORQMAX-5E'},
+    {id:'MA-T3',nome:'Redutor 3º Terno',local:'Moenda A',modelo:'TORQMAX-5E'},
+    {id:'MA-T4',nome:'Redutor 4º Terno',local:'Moenda A',modelo:'TORQMAX-5E'}
+  ],
+  modelos:{'TORQMAX-5E':MODELO_5E},
+  mecanicos:[{codigo:'1042',nome:'Mecânico Exemplo 1',serial:''},{codigo:'1077',nome:'Mecânico Exemplo 2',serial:''}],
+  pinHash:'03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4' // 1234
+};
+const DEMO=!CONFIG.API_URL;
+const MIN_SESSAO=(CONFIG.MINUTOS_SESSAO||30)*60000;
+
+// ================= Estado =================
+let CAD=null, EST=null;
+let LOCAL={regs:[],eventos:[]};
+let FOTOS=new Map();            // id do registro -> [Blob] (ainda no celular)
+let nav={screen:'inicio'};
+let sessao=null;                // {red, mec, inicio, last}
+let draft=null;                 // inspeção do item em preenchimento
+let GESTOR=false;
+const SYNC={rodando:false,erro:null,ultimo:0};
+const NFC={suportado:('NDEFReader' in window),ativo:false,erro:null,abort:null,ignorarAte:0,gravando:null,ultima:null};
+
+// ================= Utilidades =================
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ini=n=>String(n||'?').split(/\s+/).filter(Boolean).map(p=>p[0]).slice(0,2).join('').toUpperCase();
+const fmt=ts=>{const d=new Date(ts);return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})};
+const fmtDia=ts=>new Date(ts).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+const uid=()=>(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
+const normSerial=s=>String(s||'').toLowerCase().replace(/[^0-9a-f]/g,'');
+function ls(k,v){try{if(v===undefined){const r=localStorage.getItem(k);return r?JSON.parse(r):null}if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
+const DISP=(()=>{let d=ls('insp-disp');if(!d){d=uid().slice(0,8);ls('insp-disp',d)}return d})();
+const BURL=new WeakMap();
+const urlDe=b=>{let u=BURL.get(b);if(!u){u=URL.createObjectURL(b);BURL.set(b,u)}return u};
+const driveThumb=(id,w)=>`https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w${w||600}`;
+async function sha256(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+function baseUrl(){return location.origin+location.pathname.replace(/index\.html$/,'')}
+const urlRedutor=id=>baseUrl()+'?r='+encodeURIComponent(id);
+
+// ================= Cadastro / consultas =================
+const redById=id=>CAD&&CAD.redutores.find(r=>r.id===id);
+const mecById=c=>CAD&&CAD.mecanicos.find(m=>String(m.codigo)===String(c));
+const mecNome=c=>{const m=mecById(c);return m?m.nome:(c==='GESTOR'?'Gestor':'Matrícula '+c)};
+function eixosDe(rid){const r=redById(rid);return r&&CAD.modelos[r.modelo]?CAD.modelos[r.modelo]:[]}
+const eixoDe=(rid,eid)=>eixosDe(rid).find(e=>e.id===eid);
+const totalItens=rid=>eixosDe(rid).reduce((s,e)=>s+e.itens.length,0);
+
+function ultimaConclusao(rid){
+  let ts=0,mec=null;
+  const s=EST&&EST.redutores&&EST.redutores[rid];
+  if(s&&s.conclusao&&s.conclusao.ts>ts){ts=s.conclusao.ts;mec=s.conclusao.mec}
+  for(const e of LOCAL.eventos)if(e.tipo==='conclusao'&&e.red===rid&&e.ts>ts){ts=e.ts;mec=e.mec}
+  return {ts,mec};
+}
+function regsCiclo(rid){
+  const c=ultimaConclusao(rid).ts, m=new Map();
+  const s=EST&&EST.redutores&&EST.redutores[rid];
+  if(s)for(const g of s.regs)if(g.ts>c)m.set(g.id,g);
+  for(const g of LOCAL.regs)if(g.red===rid&&g.ts>c){const sv=m.get(g.id);m.set(g.id,sv?Object.assign({},sv,{sync:g.sync}):g)}
+  return [...m.values()];
+}
+function indice(rid){const m={};for(const g of regsCiclo(rid)){const k=g.eixo+'|'+g.item;if(!m[k]||g.ts>m[k].ts)m[k]=g}return m}
+function last(rid,eid,it){return indice(rid)[eid+'|'+it]||null}
+function prog(rid){
+  const ix=indice(rid);let feitos=0,worst=0;const cnt={1:0,2:0,3:0,4:0},segs=[],mecs=new Set();
+  for(const e of eixosDe(rid))for(const it of e.itens){const g=ix[e.id+'|'+it];if(g){feitos++;cnt[g.cond]++;worst=Math.max(worst,g.cond);segs.push('c'+g.cond);mecs.add(g.mec)}else segs.push('')}
+  return {feitos,total:totalItens(rid),worst,cnt,segs,mecs:[...mecs]};
+}
+function progEixo(rid,e){const ix=indice(rid);let f=0,w=0;for(const it of e.itens){const g=ix[e.id+'|'+it];if(g){f++;w=Math.max(w,g.cond)}}return {f,n:e.itens.length,w}}
+const pendentes=()=>LOCAL.regs.filter(r=>r.sync==='pend').length+LOCAL.eventos.filter(e=>e.sync==='pend').length;
+
+function fotosDe(g){
+  const bl=FOTOS.get(g.id);
+  if(bl&&bl.length)return bl.map(b=>({t:urlDe(b),f:urlDe(b)}));
+  return (g.fotoIds||[]).map(id=>({t:driveThumb(id,500),f:driveThumb(id,1600)}));
+}
+
+// ================= Componentes =================
+function chipSync(){
+  if(DEMO)return `<button class="sync demo" data-act="verSync"><i></i>Demonstração</button>`;
+  const n=pendentes(),on=navigator.onLine;let c,t;
+  if(SYNC.rodando){c='run';t='Enviando…'}
+  else if(!on){c='off';t=n?`Sem internet · ${n} na fila`:'Sem internet'}
+  else if(n&&SYNC.erro){c='erro';t=`${n} não enviado${n>1?'s':''}`}
+  else if(n){c='pend';t=`${n} aguardando envio`}
+  else{c='ok';t='Tudo enviado'}
+  return `<button class="sync ${c}" data-act="verSync"><i></i>${t}</button>`;
+}
+const chipBox=()=>`<span id="chip">${chipSync()}</span>`;
+function updateChip(){const c=document.getElementById('chip');if(c)c.innerHTML=chipSync()}
+const nfcAnim=`<div class="nfc" aria-hidden="true"><svg viewBox="0 0 132 132"><rect x="44" y="30" width="44" height="72" rx="8" fill="none" stroke="var(--fg)" stroke-width="4"/><circle cx="66" cy="92" r="3" fill="var(--fg)"/><path class="w w1" d="M98 52 a18 18 0 0 1 0 28"/><path class="w w2" d="M106 44 a30 30 0 0 1 0 44"/><path class="w w3" d="M114 36 a42 42 0 0 1 0 60"/></svg></div>`;
+function nfcBoxHtml(){
+  if(!NFC.suportado)return `<p class="nfcmsg err">Este navegador não lê NFC dentro do app. Use o Chrome no Android, ou digite a matrícula.</p>`;
+  if(NFC.ativo)return `<p class="nfcmsg ok">Leitor NFC ligado</p>`;
+  if(NFC.erro==='NotAllowedError')return `<p class="nfcmsg err">O acesso ao NFC foi bloqueado. No Chrome: cadeado da barra de endereço → Permissões → NFC → Permitir.</p><button class="btn pri" data-act="nfcOn">Tentar de novo</button>`;
+  if(NFC.erro==='NotReadableError')return `<p class="nfcmsg err">O NFC do celular está desligado. Ligue em Configurações → Conexões → NFC.</p><button class="btn pri" data-act="nfcOn">Tentar de novo</button>`;
+  return `<button class="btn pri" data-act="nfcOn">Ativar leitor NFC</button><p class="hint center">Só é preciso tocar aqui na primeira vez.</p>`;
+}
+const nfcBox=()=>`<div id="nfcbox">${nfcBoxHtml()}</div>`;
+function atualizarNfcUi(){const b=document.getElementById('nfcbox');if(b)b.innerHTML=nfcBoxHtml()}
+function progBar(rid){const p=prog(rid);return `<div class="prog">${p.segs.map(c=>`<i class="${c}"></i>`).join('')}</div><div class="progtxt"><span><b>${p.feitos}</b> de ${p.total} itens inspecionados</span><span>${p.total-p.feitos} pendentes</span></div>`}
+const mecChip=()=>`<div class="mec"><span class="av">${esc(ini(mecNome(sessao.mec)))}</span><span>${esc(mecNome(sessao.mec))}</span></div>`;
+const statusPill=g=>g?`<span class="pill c${g.cond}">${COND[g.cond].nome}</span>`:'<span class="pill p">Pendente</span>';
+const demoBanner=()=>DEMO?`<div class="demo-banner">Modo demonstração: servidor não configurado. Os registros ficam só neste celular.</div>`:'';
+
+function scheme(rid){
+  const eixos=eixosDe(rid);
+  const coord=eixos.length&&eixos.every(e=>e.x!=null&&e.y!=null&&e.r!=null);
+  const pos={};
+  if(coord)eixos.forEach(e=>pos[e.id]=[e.x,e.y,e.r]);
+  else eixos.forEach((e,i)=>pos[e.id]=[40+i*(270/Math.max(1,eixos.length-1)),108,26]);
+  let nodes='';
+  for(const e of eixos){
+    const [x,y,r]=pos[e.id],p=progEixo(rid,e);
+    const cls=p.f===0?'n0':p.f===p.n?'nd':'np';
+    const flag=p.w>=2?`<circle class="flag" cx="${x+r*.72}" cy="${y-r*.72}" r="8" fill="var(--c${p.w})"/>`:'';
+    const fs=r>40?24:r>25?17:12;
+    nodes+=`<g class="node ${cls}" data-act="eixo" data-id="${esc(e.id)}" role="button" tabindex="0" aria-label="${esc(e.nome)}, ${p.f} de ${p.n}">
+      <circle class="b" cx="${x}" cy="${y}" r="${r}"/>${flag}
+      <text x="${x}" y="${y+(r>25?2:4)}" font-size="${fs}">${esc(e.sigla)}</text>
+      ${r>25?`<text class="fr" x="${x}" y="${y+17}">${p.f}/${p.n}</text>`:`<text class="fr" x="${x}" y="${y+r+16}" style="fill:var(--muted)">${p.f}/${p.n}</text>`}
+    </g>`;
+  }
+  const casca=coord?`<path class="house" d="M14 40 Q14 26 28 26 H120 L136 10 H210 L224 26 H285 Q296 26 296 38 V186 Q296 200 282 200 H28 Q14 200 14 186 Z"/><rect class="cpl" x="322" y="100" width="18" height="24" rx="3"/>`:`<rect class="house" x="8" y="60" width="334" height="100" rx="14"/>`;
+  return `<div class="scheme"><svg viewBox="0 0 350 214" role="img" aria-label="Esquema do redutor com os eixos">${casca}${nodes}</svg>
+  <div class="legend"><span><i style="border:2px solid var(--pend)"></i>Pendente</span><span><i style="background:var(--accent-soft);border:2px dashed var(--accent)"></i>Em andamento</span><span><i style="background:var(--accent)"></i>Concluído</span><span><i style="background:var(--c3)"></i>Alerta</span></div></div>`;
+}
+function recView(g,zoomKey){
+  const f=fotosDe(g);
+  return `<div class="rec">
+    <div class="row" style="flex-wrap:wrap">${statusPill(g)}<span class="meta">${esc(mecNome(g.mec))} · ${fmt(g.ts)}</span>${g.sync==='pend'?'<span class="mini q">Aguardando envio</span>':''}</div>
+    ${f.length?`<div class="photos">${f.map((x,i)=>`<div class="ph"><img src="${esc(x.t)}" alt="Foto ${i+1}" loading="lazy" data-act="zoom" data-full="${esc(x.f)}" onerror="this.alt='Foto indisponível sem internet'"></div>`).join('')}</div>`:'<p class="hint">Sem fotos.</p>'}
+    ${g.tags&&g.tags.length?`<div class="tags">${g.tags.map(t=>`<span class="mini">${esc(t)}</span>`).join('')}</div>`:''}
+    ${g.relato?`<p>${esc(g.relato)}</p>`:'<p class="hint">Sem relato.</p>'}
+  </div>`;
+}
+
+// ================= Telas do mecânico =================
+function vSemCad(){
+  return `<div class="brand"><div class="tt"><div class="eyebrow">Primeiro acesso</div><h1>Inspeção de Redutores</h1></div></div>
+  <div class="stack" style="margin-top:24px">
+    <p>O cadastro de redutores e mecânicos ainda não foi baixado neste celular.</p>
+    <p class="muted">Conecte à internet (Wi-Fi da usina) e toque em Baixar cadastro. Depois disso o app funciona também sem internet.</p>
+    ${SYNC.erro?`<p class="nfcmsg err">${esc(SYNC.erro)}</p>`:''}
+    <button class="btn pri" data-act="baixarCad">Baixar cadastro</button>
+  </div>`;
+}
+function vInicio(){
+  return `<div class="brand"><div class="logo"><svg viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="2.4"><circle cx="11" cy="17" r="6"/><circle cx="20" cy="9.5" r="3.5"/><circle cx="20" cy="24" r="3.5"/><circle cx="26.5" cy="17" r="2.5"/></svg></div><div class="tt" style="flex:1;min-width:0"><div class="eyebrow">Moendas · UAM</div><h3>Inspeção de Redutores</h3></div>${chipBox()}</div>
+  ${demoBanner()}
+  ${nfcAnim}
+  <p class="lead">Aproxime o celular da etiqueta do redutor</p>
+  <p class="sub">A inspeção daquele redutor abre sozinha.</p>
+  ${nfcBox()}
+  <div class="section-h" style="margin-top:22px"><h3>Situação dos redutores</h3></div>
+  <div class="stack" style="gap:8px;margin-top:8px">
+  ${CAD.redutores.map(r=>{const p=prog(r.id);return `<div class="card" style="flex-direction:column;align-items:stretch;gap:4px">
+      <div class="row"><span class="nm" style="flex:1">${esc(r.nome)}</span><span class="hint">${esc(r.local||'')}</span></div>
+      ${progBar(r.id)}</div>`}).join('')}
+  </div>
+  <div class="center" style="margin-top:8px"><button class="link" data-act="gestor">Painel do gestor</button></div>`;
+}
+function vNaoCad(){
+  return `<div class="topbar"><button class="back" data-act="home" aria-label="Voltar">‹</button><div class="tt"><h2>Etiqueta desconhecida</h2></div></div>
+  <div class="stack"><p>Esta etiqueta aponta para o redutor <b class="mono">${esc(nav.red)}</b>, que não está no cadastro deste celular.</p>
+  <p class="muted">Se ele foi cadastrado agora na planilha, conecte à internet e atualize o cadastro.</p>
+  ${DEMO?'':'<button class="btn pri" data-act="baixarCad">Atualizar cadastro</button>'}</div>`;
+}
+function vCracha(){
+  const r=redById(nav.red);
+  return `<div class="topbar"><button class="back" data-act="home" aria-label="Cancelar">×</button><div class="tt"><div class="eyebrow">${esc(r.local||'')}</div><h2>${esc(r.nome)}</h2></div>${chipBox()}</div>
+  ${progBar(r.id)}
+  ${nfcAnim}
+  <p class="lead">Identifique-se</p>
+  <p class="sub">Aproxime o celular do seu crachá.</p>
+  ${nfcBox()}
+  <div class="center"><button class="link" data-act="digitarMat">Estou sem crachá: digitar matrícula</button></div>`;
+}
+function vRedutor(){
+  const r=redById(sessao.red),p=prog(r.id),completo=p.total>0&&p.feitos===p.total,uc=ultimaConclusao(r.id);
+  return `<div class="topbar"><div class="tt"><div class="eyebrow">${esc(r.local||'')}</div><h2>${esc(r.nome)}</h2></div>${mecChip()}</div>
+  <div class="row" style="justify-content:space-between;margin-bottom:6px">${chipBox()}</div>
+  ${demoBanner()}
+  ${progBar(r.id)}
+  ${p.feitos===0&&uc.ts?`<div class="banner" style="margin-top:8px">Inspeção anterior concluída em ${fmtDia(uc.ts)} por ${esc(mecNome(uc.mec))}. Esta é uma nova inspeção.</div>`:''}
+  ${scheme(r.id)}
+  <div class="section-h"><h3>Eixos</h3><span class="hint">Toque no eixo para inspecionar</span></div>
+  <div class="stack" style="gap:8px;margin-top:8px">
+  ${eixosDe(r.id).map(e=>{const pe=progEixo(r.id,e);return `<button class="card" data-act="eixo" data-id="${esc(e.id)}">
+    <span style="flex:1;min-width:0"><span class="nm">${esc(e.nome)}</span><span class="chips">${e.itens.map(it=>{const g=last(r.id,e.id,it);return `<span class="mini ${g?'c'+g.cond:''}">${esc(itemCurto(it))}</span>`}).join('')}</span></span>
+    <span class="frac">${pe.f}/${pe.n}</span><span class="chev">›</span></button>`}).join('')}
+  </div>
+  <div class="bar"><div class="in">
+    ${completo?'<div class="why">Todos os itens foram inspecionados.</div>':''}
+    <div class="btns"><button class="btn" data-act="pedirFim">Finalizar por hoje</button>${completo?'<button class="btn pri" data-act="pedirConcluir">Concluir inspeção</button>':''}</div>
+  </div></div>`;
+}
+function vEixo(){
+  const r=redById(sessao.red),e=eixoDe(r.id,nav.eixo);
+  const row=it=>{const g=last(r.id,e.id,it);return `<button class="item ${g?'c'+g.cond:'p'}" data-act="item" data-id="${esc(it)}">
+    <span style="flex:1;min-width:0"><span class="nm">${esc(itemNome(it))}</span><small>${g?`${esc(mecNome(g.mec))} · ${fmt(g.ts)}${g.sync==='pend'?' · na fila':''}`:'Ainda não inspecionado'}</small></span>
+    ${statusPill(g)}</button>`};
+  const rol=e.itens.filter(i=>itemTipo(i)==='rol'),eng=e.itens.filter(i=>itemTipo(i)==='eng');
+  return `<div class="topbar"><button class="back" data-act="voltarRed" aria-label="Voltar">‹</button><div class="tt"><div class="eyebrow">${esc(r.nome)}</div><h2>${esc(e.nome)}</h2></div></div>
+  <div class="stack" style="gap:18px;margin-top:6px">
+    ${rol.length?`<div class="group"><div class="eyebrow">Rolamentos</div>${rol.map(row).join('')}</div>`:''}
+    ${eng.length?`<div class="group"><div class="eyebrow">Engrenamento</div>${eng.map(row).join('')}</div>`:''}
+  </div>
+  <div class="bar"><div class="in"><div class="btns"><button class="btn" data-act="voltarRed">Voltar ao redutor</button></div></div></div>`;
+}
+function vItem(){
+  const r=redById(sessao.red),e=eixoDe(r.id,nav.eixo),g=last(r.id,e.id,nav.item);
+  const head=`<div class="topbar"><button class="back" data-act="voltarEixo" aria-label="Voltar">‹</button><div class="tt"><div class="eyebrow">${esc(r.nome)} · ${esc(e.nome)}</div><h2>${esc(itemNome(nav.item))}</h2></div></div>`;
+  if(g&&!draft){
+    return `${head}<div class="stack"><div class="eyebrow">Última inspeção</div>${recView(g)}</div>
+    <div class="bar"><div class="in"><div class="btns"><button class="btn" data-act="voltarEixo">Voltar</button><button class="btn pri" data-act="refazer">Inspecionar de novo</button></div></div></div>`;
+  }
+  const d=draft,tipo=itemTipo(nav.item);
+  return `${head}
+  <div class="stack" style="gap:22px;margin-top:4px">
+    <div class="field"><div class="label">Fotos <small>${d.cond>=3?'mínimo 2':'mínimo 1'}</small></div>
+      ${d.fotos.length?`<div class="photos">${d.fotos.map((b,i)=>`<div class="ph"><img src="${urlDe(b)}" alt="Foto ${i+1}" data-act="zoom" data-full="${urlDe(b)}"><button data-act="delFoto" data-i="${i}" aria-label="Remover foto">×</button></div>`).join('')}</div>`:''}
+      <label class="cam" id="camLbl"><input type="file" accept="image/*" capture="environment" id="fotoInput"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="4"/></svg><span>${d.fotos.length?'Tirar mais uma foto':'Tirar foto'}</span></label>
+      <div class="center"><label class="link" style="display:inline-block;cursor:pointer">Escolher da galeria<input type="file" accept="image/*" multiple id="galInput" hidden></label></div>
+    </div>
+    <div class="field"><div class="label">Condição</div>
+      <div class="conds">${[1,2,3,4].map(c=>`<button class="cond c${c} ${d.cond===c?'on':''}" data-act="cond" data-c="${c}" aria-pressed="${d.cond===c}"><b><i style="background:var(--c${c})"></i>${COND[c].nome}</b><small>${COND[c].desc}</small></button>`).join('')}</div>
+    </div>
+    <div class="field"><div class="label">O que você viu <small>opcional, toque para marcar</small></div>
+      <div class="tags">${TAGS[tipo].map(t=>`<button class="tg ${d.tags.includes(t)?'on':''}" data-act="tag" data-t="${esc(t)}" aria-pressed="${d.tags.includes(t)}">${esc(t)}</button>`).join('')}</div>
+    </div>
+    <div class="field"><div class="label">Relato <small>${d.cond>=3?'obrigatório':'opcional'}</small></div>
+      <textarea id="relato" placeholder="Escreva, ou toque no microfone do teclado para ditar">${esc(d.relato)}</textarea>
+    </div>
+  </div>
+  <div class="bar"><div class="in"><div class="why" id="why"></div><div class="btns"><button class="btn" data-act="descartar">Descartar</button><button class="btn pri" id="saveBtn" data-act="salvar">Salvar</button></div></div></div>`;
+}
+function vFim(){
+  const f=nav.fim,p=prog(f.red);
+  return `<div class="stack" style="padding-top:40px">
+    <div class="eyebrow">Inspeção pausada</div>
+    <h1>Bom descanso, ${esc(mecNome(f.mec).split(' ')[0])}.</h1>
+    <p>Você registrou <b>${f.qtd} ${f.qtd===1?'item':'itens'}</b> nesta sessão no ${esc(redById(f.red).nome)}.</p>
+    ${progBar(f.red)}
+    <p class="muted">${p.total-p.feitos?`Os ${p.total-p.feitos} itens pendentes ficam disponíveis para o próximo mecânico que ler a etiqueta.`:'Todos os itens estão inspecionados.'}</p>
+    ${pendentes()?`<p class="banner">${pendentes()} registro(s) ainda estão no celular e serão enviados quando houver internet. Não é preciso deixar o app aberto.</p>`:''}
+  </div>
+  <div class="bar"><div class="in"><div class="btns"><button class="btn pri" data-act="home">Voltar ao início</button></div></div></div>`;
+}
+
+// ================= Telas do gestor =================
+function vGpin(){
+  return `<div class="topbar"><button class="back" data-act="home" aria-label="Voltar">‹</button><div class="tt"><h2>Painel do gestor</h2></div></div>
+  <div class="stack" style="margin-top:20px">
+    <label for="pin" class="label">PIN do gestor</label>
+    <input class="txt pin" id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12">
+    <p class="nfcmsg err" id="pinErr" hidden>PIN incorreto.</p>
+    ${DEMO?'<p class="hint">Demonstração: o PIN é 1234.</p>':''}
+    <button class="btn pri" data-act="entrarGestor">Entrar</button>
+  </div>`;
+}
+function vGestor(){
+  return `<div class="topbar"><button class="back" data-act="sairGestor" aria-label="Sair">‹</button><div class="tt"><div class="eyebrow">Gestor</div><h2>Redutores</h2></div>${chipBox()}</div>
+  <div class="row" style="gap:8px;margin-bottom:10px"><button class="btn sm" data-act="gTags">Etiquetas NFC</button>${DEMO?'':'<button class="btn sm" data-act="atualizar">Atualizar</button>'}</div>
+  ${EST&&EST.em?`<p class="hint" style="margin-bottom:8px">Dados do servidor de ${fmt(EST.em)}.</p>`:''}
+  <div class="stack">
+  ${CAD.redutores.map(r=>{const p=prog(r.id),uc=ultimaConclusao(r.id);return `<button class="rcard" data-act="gRed" data-id="${esc(r.id)}">
+    <div class="row"><h3 style="flex:1">${esc(r.nome)}</h3><span class="frac">${p.total?Math.round(p.feitos/p.total*100):0}%</span></div>
+    ${progBar(r.id)}
+    <div class="counts">${[4,3,2,1].filter(c=>p.cnt[c]).map(c=>`<span class="mini c${c}">${p.cnt[c]} ${COND[c].nome}</span>`).join('')||'<span class="hint">Nenhum item nesta inspeção</span>'}</div>
+    ${p.mecs.length?`<span class="hint">Por: ${p.mecs.map(m=>esc(mecNome(m))).join(', ')}</span>`:''}
+    ${uc.ts?`<span class="hint">Última conclusão: ${fmtDia(uc.ts)}</span>`:''}
+  </button>`}).join('')}
+  </div>`;
+}
+function vGRed(){
+  const r=redById(nav.red),cols=['LA','LOA','PIN','ENG'],p=prog(r.id);
+  const alertas=[];for(const e of eixosDe(r.id))for(const it of e.itens){const g=last(r.id,e.id,it);if(g&&g.cond>=2)alertas.push({e,it,g})}
+  alertas.sort((a,b)=>b.g.cond-a.g.cond);
+  return `<div class="topbar"><button class="back" data-act="gestorVolta" aria-label="Voltar">‹</button><div class="tt"><div class="eyebrow">${esc(r.local||'')}</div><h2>${esc(r.nome)}</h2></div></div>
+  ${progBar(r.id)}
+  <div class="section-h"><h3>Mapa da inspeção</h3><span class="hint">Toque para ver o histórico</span></div>
+  <div class="mxwrap"><table class="mx"><thead><tr><th></th>${cols.map(c=>`<th>${esc(itemCurto(c))}</th>`).join('')}</tr></thead><tbody>
+  ${eixosDe(r.id).map(e=>`<tr><th class="r" scope="row">${esc(e.nome.replace('Intermediário','Interm.').replace('Eixo de ',''))}</th>${cols.map(c=>{
+    if(!e.itens.includes(c))return '<td><button class="cell na" disabled aria-label="Não se aplica">—</button></td>';
+    const g=last(r.id,e.id,c);return `<td><button class="cell ${g?'c'+g.cond:'p'}" data-act="gHist" data-e="${esc(e.id)}" data-i="${c}">${g?COND[g.cond].nome:'Pend.'}</button></td>`}).join('')}</tr>`).join('')}
+  </tbody></table></div>
+  <div class="section-h"><h3>Alertas</h3></div>
+  <div class="stack" style="gap:8px;margin-top:8px">
+  ${alertas.length?alertas.map(({e,it,g})=>`<button class="item c${g.cond}" data-act="gHist" data-e="${esc(e.id)}" data-i="${esc(it)}"><span style="flex:1;min-width:0"><span class="nm">${esc(e.nome)} · ${esc(itemNome(it))}</span><small>${esc(g.relato||(g.tags||[]).join(', ')||'Sem relato')}</small></span>${statusPill(g)}</button>`).join(''):'<p class="hint">Nenhum item com alerta nesta inspeção.</p>'}
+  </div>
+  <div class="section-h"><h3>Ações</h3></div>
+  <div class="stack" style="gap:8px;margin-top:8px">
+    <button class="btn" data-act="abrirSemTag">Abrir inspeção sem etiqueta</button>
+    ${p.feitos?`<button class="btn" data-act="gConcluir">Concluir inspeção (${p.total-p.feitos} pendentes)</button>`:''}
+  </div>`;
+}
+function vGHist(){
+  const r=redById(nav.red),e=eixoDe(r.id,nav.eixo),h=nav.hist||{};
+  let lista=h.lista||[];
+  const ids=new Set(lista.map(g=>g.id));
+  for(const g of LOCAL.regs)if(g.red===r.id&&g.eixo===e.id&&g.item===nav.item&&!ids.has(g.id))lista.push(g);
+  if(!h.lista&&EST&&EST.redutores&&EST.redutores[r.id])for(const g of EST.redutores[r.id].regs)if(g.eixo===e.id&&g.item===nav.item&&!lista.some(x=>x.id===g.id))lista.push(g);
+  lista=lista.slice().sort((a,b)=>b.ts-a.ts);
+  return `<div class="topbar"><button class="back" data-act="gRedVolta" aria-label="Voltar">‹</button><div class="tt"><div class="eyebrow">${esc(r.nome)} · ${esc(e.nome)}</div><h2>${esc(itemNome(nav.item))}</h2></div></div>
+  <p class="hint" style="margin-bottom:10px">Histórico completo desta posição, da mais recente para a mais antiga.</p>
+  ${h.carregando?'<div class="spin"></div>':''}
+  ${h.erro?`<p class="nfcmsg err" style="margin-bottom:10px">Sem conexão com o servidor: mostrando só o que está neste celular.</p>`:''}
+  <div class="stack">${lista.length?lista.map(g=>recView(g)).join(''):(h.carregando?'':'<p class="hint">Nenhuma inspeção registrada nesta posição.</p>')}</div>`;
+}
+function vGTags(){
+  const u=NFC.ultima;
+  return `<div class="topbar"><button class="back" data-act="gestorVolta" aria-label="Voltar">‹</button><div class="tt"><div class="eyebrow">Gestor</div><h2>Etiquetas NFC</h2></div></div>
+  ${NFC.suportado?'':'<p class="nfcmsg err" style="margin-bottom:10px">Este navegador não grava NFC. Use o Chrome no Android, ou grave com o app NFC Tools (veja o tutorial).</p>'}
+  <div class="lida"><div class="eyebrow">Última etiqueta lida</div>
+    ${u?`<div class="mono">Serial: ${esc(u.serial||'-')}</div><div class="mono" style="word-break:break-all">${esc(u.url||u.texto||'(etiqueta vazia)')}</div>${u.serial?`<button class="btn sm" data-act="copiar" data-v="${esc(u.serial)}">Copiar serial</button>`:''}`:`<p class="hint">Aproxime qualquer etiqueta para ver o conteúdo e o serial. ${NFC.ativo?'':'Ligue o leitor primeiro.'}</p>${NFC.ativo?'':nfcBox()}`}
+  </div>
+  <div class="section-h"><h3>Redutores</h3><span class="hint">grava o link do app</span></div>
+  <div class="stack" style="gap:8px;margin-top:8px">
+  ${CAD.redutores.map(r=>`<div class="tagrow"><div class="tt"><b>${esc(r.nome)}</b><small>${esc(urlRedutor(r.id))}</small></div><button class="btn sm pri" data-act="gravar" data-tipo="red" data-id="${esc(r.id)}">Gravar</button></div>`).join('')}
+  </div>
+  <div class="section-h"><h3>Crachás</h3><span class="hint">grava ${esc(CONFIG.TAG_PREFIXO_MECANICO)}matrícula</span></div>
+  <div class="stack" style="gap:8px;margin-top:8px">
+  ${CAD.mecanicos.map(m=>`<div class="tagrow"><div class="tt"><b>${esc(m.nome)}</b><small>Matrícula ${esc(m.codigo)}${m.serial?' · serial cadastrado':''}</small></div><button class="btn sm pri" data-act="gravar" data-tipo="mec" data-id="${esc(m.codigo)}">Gravar</button></div>`).join('')}
+  </div>`;
+}
+
+// ================= Render =================
+const app=document.getElementById('app'),layer=document.getElementById('layer');
+function render(){
+  if(!CAD){app.innerHTML=vSemCad();return}
+  if((nav.screen==='cracha'||nav.screen==='naoCad')&&!redById(nav.red))nav.screen='naoCad';
+  if(['redutor','eixo','item'].includes(nav.screen)&&(!sessao||!redById(sessao.red)))nav={screen:'inicio'};
+  if(['gestor','gRed','gHist','gTags'].includes(nav.screen)&&!GESTOR)nav={screen:'gpin'};
+  const V={inicio:vInicio,naoCad:vNaoCad,cracha:vCracha,redutor:vRedutor,eixo:vEixo,item:vItem,fim:vFim,gpin:vGpin,gestor:vGestor,gRed:vGRed,gHist:vGHist,gTags:vGTags}[nav.screen]||vInicio;
+  app.innerHTML=V();
+  if(nav.screen==='item'&&draft)updateSave();
+}
+function go(screen,extra){nav=Object.assign({},nav,extra||{},{screen});render();window.scrollTo(0,0)}
+function sheet(html){layer.innerHTML=`<div class="veil" data-act="fechar"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`}
+function closeLayer(){layer.innerHTML=''}
+let toastT;
+function toast(msg){document.querySelectorAll('.toast').forEach(t=>t.remove());const t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=msg;document.body.appendChild(t);clearTimeout(toastT);toastT=setTimeout(()=>t.remove(),2800)}
+
+// ================= Sessão =================
+function salvarSessao(){ls('insp-sessao',sessao||null)}
+function tocarSessao(){if(sessao){sessao.last=Date.now();salvarSessao()}}
+function entrar(cod){
+  const m=mecById(cod);if(!m){toast('Matrícula não cadastrada');return}
+  sessao={red:nav.red,mec:String(m.codigo),inicio:Date.now(),last:Date.now()};salvarSessao();
+  closeLayer();toast('Olá, '+m.nome.split(' ')[0]);go('redutor');
+}
+function abrirRedutor(rid){
+  if(!redById(rid)){go('naoCad',{red:rid});return}
+  if(sessao&&sessao.red===rid){toast('Você já está neste redutor');if(!['redutor','eixo','item'].includes(nav.screen))go('redutor');return}
+  const trocar=()=>{draft=null;idbDel('kv','draft').catch(()=>{});sessao=null;salvarSessao();try{history.replaceState(null,'','?r='+encodeURIComponent(rid))}catch(e){}closeLayer();go('cracha',{red:rid})};
+  if(draft&&(draft.fotos.length||draft.cond||draft.relato)){
+    sheet(`<h2>Trocar de redutor?</h2><p>O item que você está preenchendo ainda não foi salvo e será descartado.</p><div class="btns"><button class="btn" data-act="fechar">Continuar aqui</button><button class="btn dng" id="trocarOk">Trocar</button></div>`);
+    document.getElementById('trocarOk').onclick=trocar;return;
+  }
+  trocar();
+}
+
+// ================= NFC =================
+async function nfcPermitido(){try{const p=await navigator.permissions.query({name:'nfc'});return p.state==='granted'}catch(e){return false}}
+async function nfcStart(){
+  if(!NFC.suportado||NFC.ativo)return;
+  try{
+    const ctrl=new AbortController(),rd=new NDEFReader();
+    rd.onreading=onNfc;
+    rd.onreadingerror=()=>{if(Date.now()>NFC.ignorarAte&&!NFC.gravando)toast('Não consegui ler a etiqueta. Aproxime de novo e segure parado.')};
+    await rd.scan({signal:ctrl.signal});
+    NFC.abort=ctrl;NFC.ativo=true;NFC.erro=null;
+  }catch(e){NFC.ativo=false;NFC.erro=e.name}
+  atualizarNfcUi();
+}
+function nfcStop(){if(NFC.abort){try{NFC.abort.abort()}catch(e){}}NFC.abort=null;NFC.ativo=false}
+function lerTag(ev){
+  const o={serial:normSerial(ev.serialNumber),url:null,texto:null};
+  for(const rec of ev.message.records){
+    try{
+      if(rec.recordType==='url'||rec.recordType==='absolute-url')o.url=new TextDecoder().decode(rec.data);
+      else if(rec.recordType==='text')o.texto=new TextDecoder(rec.encoding||'utf-8').decode(rec.data);
+    }catch(e){}
+  }
+  return o;
+}
+function redDeUrl(u){try{return new URL(u).searchParams.get('r')}catch(e){return null}}
+function mecDeTag(t){
+  const pre=CONFIG.TAG_PREFIXO_MECANICO||'';
+  if(t.texto&&t.texto.startsWith(pre)){const m=mecById(t.texto.slice(pre.length).trim());if(m)return m}
+  if(t.serial)return CAD.mecanicos.find(m=>m.serial&&normSerial(m.serial)===t.serial)||null;
+  return null;
+}
+function onNfc(ev){
+  if(NFC.gravando||Date.now()<NFC.ignorarAte||!CAD)return;
+  const t=lerTag(ev);NFC.ultima=t;
+  if(nav.screen==='gTags'){render();return}
+  const vib=()=>{try{navigator.vibrate&&navigator.vibrate(90)}catch(e){}};
+  const rid=t.url?redDeUrl(t.url):null;
+  if(rid){vib();abrirRedutor(rid);return}
+  const m=mecDeTag(t);
+  if(nav.screen==='cracha'){
+    if(m){vib();entrar(m.codigo)}
+    else sheet(`<h2>Crachá não cadastrado</h2><p>Este crachá não está ligado a nenhum mecânico. Peça ao gestor para gravar o crachá ou cadastrar o serial abaixo na planilha.</p><div class="lida"><div class="mono">Serial: ${esc(t.serial||'-')}</div><div class="mono">${esc(t.texto||t.url||'(etiqueta vazia)')}</div></div><button class="btn" data-act="fechar">Fechar</button>`);
+    return;
+  }
+  if(m){toast(sessao?`${mecNome(sessao.mec)} já está identificado. Para trocar, toque em Finalizar por hoje.`:'Primeiro aproxime da etiqueta do redutor.');return}
+  toast('Etiqueta não reconhecida');
+}
+async function gravar(tipo,id){
+  if(!NFC.suportado){toast('Este navegador não grava NFC');return}
+  const alvo=tipo==='red'?redById(id).nome:mecNome(id);
+  sheet(`<h2>Gravar etiqueta</h2><p>Aproxime a etiqueta ${tipo==='red'?'do':'do crachá de'} <b>${esc(alvo)}</b> da parte de trás do celular e segure parado.</p>${nfcAnim}<button class="btn" data-act="cancelarGravar">Cancelar</button>`);
+  const ctrl=new AbortController();NFC.gravando=ctrl;
+  try{
+    const msg=tipo==='red'?{records:[{recordType:'url',data:urlRedutor(id)}]}:{records:[{recordType:'text',data:(CONFIG.TAG_PREFIXO_MECANICO||'')+id,lang:'pt'}]};
+    await new NDEFReader().write(msg,{signal:ctrl.signal,overwrite:true});
+    closeLayer();toast('Etiqueta gravada. Teste aproximando de novo.');
+  }catch(e){
+    if(e.name!=='AbortError')sheet(`<h2>Não foi possível gravar</h2><p>${esc(e.name==='NotAllowedError'?'O acesso ao NFC foi negado ou a etiqueta está travada.':e.name==='NotSupportedError'?'Esta etiqueta não aceita o formato NDEF.':'Erro: '+e.message)}</p><button class="btn" data-act="fechar">Fechar</button>`);
+  }finally{NFC.gravando=null;NFC.ignorarAte=Date.now()+2000}
+}
+
+// ================= Fotos =================
+async function comprimir(file,rotulo){
+  let bmp;
+  try{bmp=await createImageBitmap(file,{imageOrientation:'from-image'})}catch(e){bmp=await createImageBitmap(file)}
+  const M=1600,s=Math.min(1,M/Math.max(bmp.width,bmp.height));
+  const c=document.createElement('canvas');c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);
+  const g=c.getContext('2d');g.drawImage(bmp,0,0,c.width,c.height);if(bmp.close)bmp.close();
+  const h=Math.max(28,Math.round(c.width*0.032));
+  g.fillStyle='rgba(0,0,0,.6)';g.fillRect(0,c.height-h,c.width,h);
+  g.fillStyle='#fff';g.font=`600 ${Math.round(h*0.56)}px Roboto,Arial,sans-serif`;g.textBaseline='middle';
+  g.fillText(rotulo,Math.round(h*0.4),c.height-h/2);
+  return await new Promise(res=>c.toBlob(res,'image/jpeg',0.75));
+}
+let draftT;
+function persistDraft(){clearTimeout(draftT);draftT=setTimeout(()=>{if(draft)idbPut('kv',draft,'draft').catch(()=>{})},400)}
+function need(){const d=draft,nf=d.cond>=3?2:1,m=[];
+  if(d.fotos.length<nf)m.push(nf===1?'1 foto':`${nf} fotos`);
+  if(!d.cond)m.push('a condição');
+  if(d.cond>=3&&!d.relato.trim())m.push('o relato');
+  return m}
+function updateSave(){const m=need(),b=document.getElementById('saveBtn'),w=document.getElementById('why');if(!b)return;b.disabled=m.length>0;w.textContent=m.length?'Falta: '+m.join(', '):'Pronto para salvar'}
+
+// ================= Dados locais e envio =================
+async function carregarLocal(){
+  try{LOCAL.regs=await idbAll('regs');LOCAL.eventos=await idbAll('eventos')}catch(e){}
+  try{const ent=await idbEntries('fotos');FOTOS=new Map(ent)}catch(e){}
+}
+async function salvarRegistro(){
+  const d=draft,reg={id:uid(),ts:Date.now(),red:d.red,eixo:d.eixo,item:d.item,cond:d.cond,tags:d.tags.slice(),relato:d.relato.trim(),mec:sessao.mec,disp:DISP,sync:DEMO?'demo':'pend'};
+  await idbPut('fotos',d.fotos.slice(),reg.id);
+  await idbPut('regs',reg);
+  LOCAL.regs.push(reg);FOTOS.set(reg.id,d.fotos.slice());
+  draft=null;await idbDel('kv','draft').catch(()=>{});
+  return reg;
+}
+async function novoEvento(tipo,red,mec,detalhe){
+  const ev={id:uid(),ts:Date.now(),tipo,red,mec,detalhe:detalhe||'',disp:DISP,sync:DEMO?'demo':'pend'};
+  await idbPut('eventos',ev);LOCAL.eventos.push(ev);return ev;
+}
+function agendarEnvio(){
+  if(DEMO)return;
+  syncTick();
+  if('serviceWorker' in navigator)navigator.serviceWorker.ready.then(r=>r.sync&&r.sync.register('enviar-fila')).catch(()=>{});
+}
+async function syncTick(){
+  if(DEMO||SYNC.rodando){updateChip();return}
+  if(!navigator.onLine||!pendentes()){updateChip();return}
+  SYNC.rodando=true;updateChip();
+  let r=null;try{r=await syncFila()}catch(e){r={erro:e.message}}
+  SYNC.rodando=false;
+  if(r){SYNC.erro=r.erro||null;SYNC.ultimo=Date.now();
+    if(r.enviados){await carregarLocal();await refreshEstado();if(nav.screen!=='item')render()}}
+  updateChip();
+}
+async function refreshEstado(){
+  if(DEMO||!navigator.onLine)return;
+  try{const j=await apiGet({action:'estado'});EST=j.estado;EST.em=Date.now();await idbPut('kv',EST,'estado')}catch(e){}
+}
+async function baixarCadastro(){
+  if(DEMO)return;
+  try{const j=await apiGet({action:'cadastro'});CAD=j.cadastro;await idbPut('kv',CAD,'cadastro');SYNC.erro=null}
+  catch(e){SYNC.erro='Não consegui baixar o cadastro: '+e.message}
+}
+async function atualizarDoServidor(){
+  if(DEMO||!navigator.onLine)return;
+  await baixarCadastro();await refreshEstado();
+  if(nav.screen!=='item')render();else updateChip();
+}
+async function limparAntigos(){
+  const lim=Date.now()-60*864e5;
+  for(const r of LOCAL.regs)if(r.sync==='ok'&&r.ts<lim){await idbDel('regs',r.id).catch(()=>{})}
+}
+
+// ================= Ações =================
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('[data-act]');if(!t)return;
+  const a=t.dataset.act;
+  if(a==='fechar'&&e.target!==t&&t.classList.contains('veil'))return;
+  tocarSessao();
+  switch(a){
+    case 'home':closeLayer();sessao=null;salvarSessao();draft=null;idbDel('kv','draft').catch(()=>{});try{history.replaceState(null,'',baseUrl())}catch(_){}go('inicio');break;
+    case 'nfcOn':nfcStop();await nfcStart();break;
+    case 'baixarCad':toast('Baixando cadastro…');await baixarCadastro();await refreshEstado();render();break;
+    case 'digitarMat':sheet(`<h2>Digitar matrícula</h2><label for="matIn" class="hint">Use só se o crachá estiver sem etiqueta ou danificado.</label><input class="txt" id="matIn" inputmode="numeric" autocomplete="off"><div class="btns"><button class="btn" data-act="fechar">Cancelar</button><button class="btn pri" data-act="matOk">Entrar</button></div>`);setTimeout(()=>{const i=document.getElementById('matIn');i&&i.focus()},50);break;
+    case 'matOk':{const v=(document.getElementById('matIn')||{}).value||'';if(mecById(v.trim()))entrar(v.trim());else toast('Matrícula não encontrada no cadastro');break}
+    case 'eixo':go('eixo',{eixo:t.dataset.id});break;
+    case 'voltarRed':go('redutor');break;
+    case 'item':{const it=t.dataset.id;draft=last(sessao.red,nav.eixo,it)?null:{red:sessao.red,eixo:nav.eixo,item:it,fotos:[],cond:0,tags:[],relato:''};go('item',{item:it});break}
+    case 'voltarEixo':
+      if(draft&&(draft.fotos.length||draft.cond||draft.relato)){sheet(`<h2>Sair sem salvar?</h2><p>O que você preencheu neste item será descartado.</p><div class="btns"><button class="btn" data-act="fechar">Continuar</button><button class="btn dng" data-act="descartarOk">Descartar</button></div>`);break}
+      draft=null;idbDel('kv','draft').catch(()=>{});go('eixo');break;
+    case 'descartar':sheet(`<h2>Descartar este item?</h2><p>Fotos e anotações não salvas serão apagadas.</p><div class="btns"><button class="btn" data-act="fechar">Voltar</button><button class="btn dng" data-act="descartarOk">Descartar</button></div>`);break;
+    case 'descartarOk':closeLayer();draft=null;idbDel('kv','draft').catch(()=>{});go('eixo');break;
+    case 'refazer':draft={red:sessao.red,eixo:nav.eixo,item:nav.item,fotos:[],cond:0,tags:[],relato:''};render();window.scrollTo(0,0);break;
+    case 'delFoto':draft.fotos.splice(+t.dataset.i,1);persistDraft();render();break;
+    case 'cond':draft.cond=+t.dataset.c;persistDraft();render();break;
+    case 'tag':{const x=t.dataset.t,i=draft.tags.indexOf(x);i<0?draft.tags.push(x):draft.tags.splice(i,1);persistDraft();render();break}
+    case 'salvar':{
+      if(!draft||need().length)return;
+      t.disabled=true;
+      const nm=itemNome(draft.item),c=draft.cond;
+      try{await salvarRegistro()}catch(err){t.disabled=false;toast('Não foi possível salvar no celular: '+err.message);return}
+      toast(c===4?nm+' salvo · gestor será avisado':(navigator.onLine||DEMO?nm+' salvo':nm+' salvo no celular · envia quando tiver internet'));
+      go('eixo');agendarEnvio();break}
+    case 'pedirFim':{const q=LOCAL.regs.filter(g=>g.mec===sessao.mec&&g.red===sessao.red&&g.ts>=sessao.inicio).length,p=prog(sessao.red);
+      sheet(`<h2>Finalizar por hoje?</h2><p>Você registrou <b>${q} ${q===1?'item':'itens'}</b> nesta sessão.${p.total-p.feitos?` Os <b>${p.total-p.feitos} pendentes</b> ficam para o próximo mecânico.`:''}</p><div class="btns"><button class="btn" data-act="fechar">Continuar</button><button class="btn pri" data-act="fim">Finalizar</button></div>`);break}
+    case 'fim':{const q=LOCAL.regs.filter(g=>g.mec===sessao.mec&&g.red===sessao.red&&g.ts>=sessao.inicio).length;
+      await novoEvento('sessao_fim',sessao.red,sessao.mec,q+' itens');
+      closeLayer();nav.fim={mec:sessao.mec,red:sessao.red,qtd:q};sessao=null;salvarSessao();try{history.replaceState(null,'',baseUrl())}catch(_){}go('fim');agendarEnvio();break}
+    case 'pedirConcluir':sheet(`<h2>Concluir inspeção?</h2><p>Todos os ${totalItens(sessao.red)} itens do ${esc(redById(sessao.red).nome)} foram inspecionados. O relatório vai por e-mail e é arquivado no OneDrive. A próxima leitura da etiqueta começa uma inspeção nova.</p><div class="btns"><button class="btn" data-act="fechar">Voltar</button><button class="btn pri" data-act="concluir">Concluir</button></div>`);break;
+    case 'concluir':{await novoEvento('conclusao',sessao.red,sessao.mec,'completa');const q=LOCAL.regs.filter(g=>g.mec===sessao.mec&&g.red===sessao.red&&g.ts>=sessao.inicio).length;
+      closeLayer();toast('Inspeção concluída');nav.fim={mec:sessao.mec,red:sessao.red,qtd:q};sessao=null;salvarSessao();go('fim');agendarEnvio();break}
+    case 'fechar':closeLayer();break;
+    case 'cancelarGravar':if(NFC.gravando)NFC.gravando.abort();closeLayer();break;
+    case 'zoom':layer.innerHTML=`<div class="viewer" data-act="fechar"><img src="${esc(t.dataset.full)}" alt="Foto ampliada"></div>`;break;
+    case 'verSync':{
+      const n=pendentes();
+      sheet(`<h2>Envio dos dados</h2>
+        ${DEMO?'<p>Modo demonstração: nada é enviado. Configure o servidor no arquivo config.js.</p>':`
+        <p>${navigator.onLine?'Celular com internet.':'Celular sem internet. Tudo que for registrado fica guardado aqui e é enviado sozinho quando a conexão voltar.'}</p>
+        <p><b>${n}</b> ${n===1?'registro aguardando':'registros aguardando'} envio.</p>
+        ${SYNC.erro?`<p class="nfcmsg err">Último erro: ${esc(SYNC.erro)}</p>`:''}
+        ${SYNC.ultimo?`<p class="hint">Última tentativa: ${fmt(SYNC.ultimo)}</p>`:''}
+        <button class="btn pri" data-act="enviarAgora" ${navigator.onLine?'':'disabled'}>Enviar agora</button>`}
+        <button class="btn" data-act="fechar">Fechar</button>`);break}
+    case 'enviarAgora':closeLayer();await syncTick();toast(pendentes()?'Ainda há itens na fila':'Tudo enviado');break;
+    // gestor
+    case 'gestor':go(GESTOR?'gestor':'gpin');setTimeout(()=>{const i=document.getElementById('pin');i&&i.focus()},50);break;
+    case 'entrarGestor':{const v=(document.getElementById('pin')||{}).value||'';if(CAD.pinHash&&await sha256(v)===CAD.pinHash){GESTOR=true;go('gestor');refreshEstado().then(()=>{if(nav.screen==='gestor')render()})}else{const er=document.getElementById('pinErr');if(er)er.hidden=false}break}
+    case 'sairGestor':GESTOR=false;go('inicio');break;
+    case 'gestorVolta':go('gestor');break;
+    case 'atualizar':toast('Atualizando…');await atualizarDoServidor();toast('Atualizado');break;
+    case 'gRed':go('gRed',{red:t.dataset.id});break;
+    case 'gRedVolta':go('gRed');break;
+    case 'gTags':go('gTags');break;
+    case 'gHist':{nav.hist={carregando:!DEMO&&navigator.onLine};go('gHist',{eixo:t.dataset.e,item:t.dataset.i});
+      if(nav.hist.carregando){const k=nav.red+nav.eixo+nav.item;try{const j=await apiGet({action:'historico',redutor:nav.red,eixo:nav.eixo,item:nav.item});if(nav.screen==='gHist'&&nav.red+nav.eixo+nav.item===k){nav.hist={lista:j.lista};render()}}catch(err){if(nav.screen==='gHist'){nav.hist={erro:err.message};render()}}}
+      break}
+    case 'abrirSemTag':sessao=null;salvarSessao();go('cracha',{red:nav.red});break;
+    case 'gConcluir':{const p=prog(nav.red);sheet(`<h2>Concluir inspeção?</h2><p>${p.total-p.feitos?`<b>${p.total-p.feitos} itens</b> ainda estão pendentes e vão constar como não inspecionados no relatório.`:'Todos os itens foram inspecionados.'}</p><div class="btns"><button class="btn" data-act="fechar">Voltar</button><button class="btn pri" data-act="gConcluirOk">Concluir</button></div>`);break}
+    case 'gConcluirOk':await novoEvento('conclusao',nav.red,'GESTOR','pelo gestor');closeLayer();toast('Inspeção concluída');render();agendarEnvio();break;
+    case 'gravar':gravar(t.dataset.tipo,t.dataset.id);break;
+    case 'copiar':try{await navigator.clipboard.writeText(t.dataset.v);toast('Serial copiado')}catch(err){toast(t.dataset.v)}break;
+  }
+});
+document.addEventListener('keydown',e=>{
+  if((e.key==='Enter'||e.key===' ')&&e.target.matches('g.node')){e.preventDefault();e.target.dispatchEvent(new MouseEvent('click',{bubbles:true}))}
+  if(e.key==='Enter'&&e.target.id==='pin')document.querySelector('[data-act="entrarGestor"]').click();
+  if(e.key==='Enter'&&e.target.id==='matIn')document.querySelector('[data-act="matOk"]').click();
+});
+document.addEventListener('input',e=>{if(e.target.id==='relato'&&draft){draft.relato=e.target.value;persistDraft();updateSave()}});
+document.addEventListener('change',async e=>{
+  if((e.target.id!=='fotoInput'&&e.target.id!=='galInput')||!draft)return;
+  const files=[...e.target.files];if(!files.length)return;
+  const lbl=document.querySelector('#camLbl span');if(lbl)lbl.textContent='Processando foto…';
+  const ex=eixoDe(draft.red,draft.eixo);
+  for(const f of files){
+    try{draft.fotos.push(await comprimir(f,`${draft.red} · ${ex?ex.sigla:draft.eixo} · ${itemNome(draft.item)} · ${fmt(Date.now())}`))}
+    catch(err){toast('Não foi possível ler essa imagem')}
+  }
+  persistDraft();render();
+});
+
+// ================= Início =================
+async function boot(){
+  try{CAD=await idbGet('kv','cadastro')||null}catch(e){}
+  try{EST=await idbGet('kv','estado')||null}catch(e){}
+  if(DEMO&&!CAD)CAD=DEMO_CAD;
+  await carregarLocal();
+  try{draft=await idbGet('kv','draft')||null}catch(e){}
+
+  const r=new URLSearchParams(location.search).get('r');
+  const s=ls('insp-sessao');
+  const viva=s&&Date.now()-s.last<MIN_SESSAO;
+  if(r){
+    if(viva&&s.red===r){sessao=s;nav={screen:'redutor'}}
+    else{sessao=null;salvarSessao();nav={screen:'cracha',red:r}}
+  }else if(viva){sessao=s;nav={screen:'redutor'}}
+  else nav={screen:'inicio'};
+  if(draft){
+    if(sessao&&draft.red===sessao.red){nav={screen:'item',eixo:draft.eixo,item:draft.item};toast('Retomando o item que estava aberto')}
+    else{draft=null;idbDel('kv','draft').catch(()=>{})}
+  }
+  render();
+
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  if(NFC.suportado&&await nfcPermitido())nfcStart();
+
+  if(!DEMO){
+    const tinhaCad=!!CAD;
+    await atualizarDoServidor();
+    if(!tinhaCad&&CAD&&nav.screen!=='item')render();
+    syncTick();limparAntigos();
+    setInterval(syncTick,45000);
+    setInterval(()=>{if(navigator.onLine&&nav.screen!=='item')refreshEstado().then(()=>{if(['inicio','redutor','eixo','gestor','gRed'].includes(nav.screen)&&!layer.innerHTML)render()})},180000);
+  }
+  window.addEventListener('online',()=>{updateChip();syncTick();atualizarDoServidor()});
+  window.addEventListener('offline',updateChip);
+  document.addEventListener('visibilitychange',async()=>{
+    if(document.visibilityState!=='visible')return;
+    if(sessao&&Date.now()-sessao.last>=MIN_SESSAO&&nav.screen!=='item'){const red=sessao.red;sessao=null;salvarSessao();go('cracha',{red});toast('Sessão expirada. Identifique-se de novo.')}
+    if(NFC.suportado&&await nfcPermitido()){nfcStop();nfcStart()}
+    syncTick();
+  });
+}
+boot();
+</script>
+</body>
+</html>
